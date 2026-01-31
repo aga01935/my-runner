@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Neon Subway Runner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="score-container">SCORE: <span id="score">0</span></div>
+        <div id="coins-container">COINS: <span id="coins">0</span></div>
+        
+        <div id="start-screen">
+            <h1>NEON RUNNER</h1>
+            <p>Swipe or Arrow Keys to Move</p>
+            <p>Up to Jump / Down to Slide</p>
+            <button id="start-btn">RUN</button>
+        </div>
+
+        <div id="game-over-screen" class="hidden">
+            <h1>CRASHED!</h1>
+            <p>Final Score: <span id="final-score">0</span></p>
+            <button id="restart-btn">RESTART</button>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+    <script type="module" src="game.js"></script>
+</body>
+</html>
