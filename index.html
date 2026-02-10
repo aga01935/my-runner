@@ -2,39 +2,98 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Neon Subway Runner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Arctic Apex: The Frost Hunt</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="ui-layer">
-        <div id="score-container">SCORE: <span id="score">0</span></div>
-        <div id="coins-container">COINS: <span id="coins">0</span></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="uiLayer">
         
-        <div id="start-screen">
-            <h1>NEON RUNNER</h1>
-            <p>Swipe or Arrow Keys to Move</p>
-            <p>Up to Jump / Down to Slide</p>
-            <button id="start-btn">RUN</button>
+        <div class="hud-top">
+            <div class="stat-box money-box">
+                <span class="icon">💰</span> <span id="moneyDisplay">0</span>
+            </div>
+            <div class="stat-box stage-box">
+                <span>STAGE <span id="stageDisplay">1</span></span>
+            </div>
+            <div class="stat-box meat-box">
+                <span class="icon">🍖</span> <span id="meatDisplay">0</span> / <span id="meatCapDisplay">10</span>
+            </div>
         </div>
 
-        <div id="game-over-screen" class="hidden">
-            <h1>CRASHED!</h1>
-            <p>Final Score: <span id="final-score">0</span></p>
-            <button id="restart-btn">RESTART</button>
+        <div class="health-container">
+            <div id="healthBarFill"></div>
+        </div>
+
+        <div id="notificationArea"></div>
+
+        <button id="upgradeBtn" class="action-btn upgrade-btn">UPGRADE (U)</button>
+        
+        <div id="mobileControls">
+            <div id="joystickZone"></div>
+            <button id="attackBtn" class="action-btn attack-btn">⚔️</button>
+        </div>
+
+        <div id="startScreen" class="menu-overlay active">
+            <h1>ARCTIC APEX</h1>
+            <p>The Frost Hunt</p>
+            <div class="tutorial">
+                <p>💻 <b>Desktop:</b> WASD to Move, SPACE to Attack</p>
+                <p>📱 <b>Mobile:</b> Left Joystick Move, Right Button Attack</p>
+                <p>🎯 Kill Bears ➔ Get Meat ➔ Fill Machine ➔ Earn Gold</p>
+            </div>
+            <button id="startBtn" class="menu-btn">ENTER THE STORM</button>
+        </div>
+
+        <div id="upgradeMenu" class="menu-overlay">
+            <h2>SUPPLY STATION</h2>
+            <div class="upgrade-grid">
+                <div class="upgrade-card" id="upgDmg">
+                    <h3>Sharpness</h3>
+                    <p>Damage ++</p>
+                    <button class="buy-btn">100g</button>
+                </div>
+                <div class="upgrade-card" id="upgHp">
+                    <h3>Vitality</h3>
+                    <p>Max HP ++</p>
+                    <button class="buy-btn">100g</button>
+                </div>
+                <div class="upgrade-card" id="upgSpd">
+                    <h3>Agility</h3>
+                    <p>Move Speed ++</p>
+                    <button class="buy-btn">150g</button>
+                </div>
+                <div class="upgrade-card" id="upgCap">
+                    <h3>Backpack</h3>
+                    <p>Meat Cap ++</p>
+                    <button class="buy-btn">200g</button>
+                </div>
+                <div class="upgrade-card" id="upgMach">
+                    <h3>Processor</h3>
+                    <p>Value/Sec ++</p>
+                    <button class="buy-btn">300g</button>
+                </div>
+            </div>
+            <button id="closeUpgradeBtn" class="menu-btn secondary">RESUME HUNT</button>
+        </div>
+
+        <div id="gameOverScreen" class="menu-overlay">
+            <h1>FROZEN</h1>
+            <p>You succumbed to the cold.</p>
+            <p>Stage Reached: <span id="finalStage">1</span></p>
+            <button id="restartBtn" class="menu-btn">RESPAWN</button>
+        </div>
+        
+        <div id="winScreen" class="menu-overlay">
+            <h1>APEX PREDATOR</h1>
+            <p>The Arctic is conquered.</p>
+            <button id="restartWinBtn" class="menu-btn">HUNT AGAIN</button>
         </div>
     </div>
 
-    <div id="canvas-container"></div>
-
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-            }
-        }
-    </script>
-    <script type="module" src="game.js"></script>
+    <script src="game.js"></script>
 </body>
 </html>
