@@ -81,19 +81,36 @@ canvas {
 }
 
 /* Controls */
+/* --- UPDATED MOBILE CONTROLS --- */
 #mobileControls {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
     width: 100%;
     height: 100%;
+    z-index: 100;
+    display: none; /* Shown via JS */
+    touch-action: none; /* CRITICAL: Stops browser scrolling/zooming */
+}
+
+/* We will draw the joystick visually in Canvas, so we just need the text hint */
+.mobile-hint {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 12px;
     pointer-events: none;
-    display: none; /* Hidden by default, shown via JS if touch */
+}
+
+/* Ensure upgrade button is clickable over the touch layer */
+.upgrade-btn {
+    z-index: 101; /* Higher than controls */
 }
 
 @media (hover: none) and (pointer: coarse) {
     #mobileControls { display: block; }
-    .upgrade-btn { top: 70px !important; right: 20px !important; }
 }
 
 #joystickZone {
@@ -238,3 +255,4 @@ p { color: #ccc; margin-bottom: 20px; text-align: center; max-width: 400px; line
     0% { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-30px); }
 }
+
