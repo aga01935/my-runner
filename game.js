@@ -1,20 +1,16 @@
-/**
- * ARCTIC APEX - REGION BOUNDARY & GRINDER UPDATE
- */
-
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 const CONFIG = {
-    playerSpeed: 5.5,
-    playerDmg: 40,          // Buffed damage to ensure kills
+    playerSpeed: 6,
+    playerDmg: 45,
     playerHp: 200,
-    playerAttackCooldown: 20, 
+    playerAttackCooldown: 18, 
     meatCap: 12,
-    machineSpeed: 40, 
+    machineSpeed: 30, 
     machineValue: 15, 
-    drag: 0.82,
-    huntBoundary: 400      // Bears cannot go left of this X coordinate
+    drag: 0.8,
+    huntBoundary: 500 // The "Fence" line
 };
 
 const state = {
@@ -35,40 +31,34 @@ const state = {
     texts: [],
     cam: { x: 0, y: 0 },
     shake: 0,
-    grinderSlices: [] // For the new animation
+    grinderSlices: [],
+    grinderAngle: 0
 };
 
-// --- NEW ANIMATED GRINDER MACHINE ---
+// --- ENTITIES ---
+
 class Machine {
     constructor() {
-        this.x = -200; // Safe zone
+        this.x = 0; // Center of safe zone
         this.y = 0;
-        this.timer = 0;
-        this.rotation = 0;
     }
     update() {
         const dist = Math.hypot(player.x - this.x, player.y - this.y);
-        // Collect meat from player
-        if (dist < 100 && state.meat > 0) {
+        if (dist < 120 && state.meat > 0) {
             state.meatStored += state.meat;
             state.meat = 0;
             updateUI();
         }
         
-        // Grind Animation
         if (state.meatStored > 0) {
-            this.timer++;
-            this.rotation += 0.2; // Spin the gears
-            
-            if (this.timer >= CONFIG.machineSpeed) {
-                this.timer = 0;
+            state.grinderAngle += 0.15;
+            if (Date.now() % CONFIG.machineSpeed === 0) { // Throttle processing
                 state.meatStored--;
                 state.money += CONFIG.machineValue;
-                // Create a "Meat Slice" animation particle
                 state.grinderSlices.push({
-                    x: this.x, y: this.y, 
-                    vx: 2 + Math.random() * 2, vy: (Math.random() - 0.5) * 4, 
-                    life: 40
+                    x: this.x + 40, y: this.y, 
+                    vx: 3 + Math.random() * 2, vy: (Math.random() - 0.5) * 2, 
+                    life: 50
                 });
                 updateUI();
             }
@@ -77,63 +67,59 @@ class Machine {
     draw() {
         const sx = this.x - state.cam.x, sy = this.y - state.cam.y;
         
-        // Machine Body
-        ctx.fillStyle = '#2c3e50';
-        ctx.fillRect(sx - 60, sy - 60, 120, 120);
-        
-        // Spinning Gear
+        // Machine Base
+        ctx.fillStyle = '#455a64';
+        ctx.fillRect(sx - 50, sy - 50, 100, 100);
+        ctx.strokeStyle = '#263238';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(sx - 50, sy - 50, 100, 100);
+
+        // Rotating Gear
         ctx.save();
-        ctx.translate(sx, sy - 20);
-        ctx.rotate(this.rotation);
-        ctx.fillStyle = '#7f8c8d';
-        for(let i=0; i<8; i++) {
-            ctx.rotate(Math.PI/4);
-            ctx.fillRect(-5, -35, 10, 70);
+        ctx.translate(sx, sy);
+        ctx.rotate(state.grinderAngle);
+        ctx.fillStyle = '#90a4ae';
+        for(let i=0; i<4; i++) {
+            ctx.rotate(Math.PI/2);
+            ctx.fillRect(-8, -40, 16, 80);
         }
         ctx.restore();
 
-        // Output Slot
-        ctx.fillStyle = '#1a252f';
-        ctx.fillRect(sx + 40, sy, 20, 40);
-        
-        // Processing Text
-        if (state.meatStored > 0) {
-            ctx.fillStyle = '#2ecc71';
-            ctx.font = 'bold 14px Arial';
-            ctx.fillText("GRINDING...", sx, sy + 80);
-        }
+        // Signage
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText("MEAT GRINDER", sx, sy - 60);
+        ctx.fillStyle = '#ffeb3b';
+        ctx.fillText("STASH: " + state.meatStored, sx, sy + 70);
     }
 }
 
 class Player {
     constructor() {
-        this.x = -100; this.y = 0; this.vx = 0; this.vy = 0;
-        this.radius = 18; this.angle = 0;
+        this.x = -200; this.y = 0; this.vx = 0; this.vy = 0;
+        this.radius = 20; this.angle = 0;
         this.hp = CONFIG.playerHp; this.maxHp = CONFIG.playerHp;
         this.cooldown = 0; this.attacking = 0;
     }
-
     update() {
-        let inputX = 0, inputY = 0;
-        if (state.keys['KeyW'] || state.keys['ArrowUp']) inputY = -1;
-        if (state.keys['KeyS'] || state.keys['ArrowDown']) inputY = 1;
-        if (state.keys['KeyA'] || state.keys['ArrowLeft']) inputX = -1;
-        if (state.keys['KeyD'] || state.keys['ArrowRight']) inputX = 1;
+        let ix = 0, iy = 0;
+        if (state.keys['KeyW'] || state.keys['ArrowUp']) iy = -1;
+        if (state.keys['KeyS'] || state.keys['ArrowDown']) iy = 1;
+        if (state.keys['KeyA'] || state.keys['ArrowLeft']) ix = -1;
+        if (state.keys['KeyD'] || state.keys['ArrowRight']) ix = 1;
+        if (state.touch.active) { ix = state.touch.dx; iy = state.touch.dy; }
 
-        if (state.touch.active) { inputX = state.touch.dx; inputY = state.touch.dy; }
-
-        if (!state.touch.active && (inputX !== 0 || inputY !== 0)) {
-            const len = Math.hypot(inputX, inputY);
-            inputX /= len; inputY /= len;
+        if (ix !== 0 || iy !== 0) {
+            const mag = Math.hypot(ix, iy);
+            this.vx += (ix/mag) * CONFIG.playerSpeed * 0.2;
+            this.vy += (iy/mag) * CONFIG.playerSpeed * 0.2;
+            this.angle = Math.atan2(iy, ix);
         }
 
-        this.vx += inputX * CONFIG.playerSpeed * 0.25;
-        this.vy += inputY * CONFIG.playerSpeed * 0.25;
         this.x += this.vx; this.y += this.vy;
         this.vx *= CONFIG.drag; this.vy *= CONFIG.drag;
-
-        if (Math.hypot(this.vx, this.vy) > 0.2) this.angle = Math.atan2(this.vy, this.vx);
-
+        
         if (this.cooldown > 0) this.cooldown--;
         if (this.attacking > 0) this.attacking--;
 
@@ -142,126 +128,86 @@ class Player {
             state.touch.attacking = false;
         }
     }
-
     performAttack() {
         this.cooldown = CONFIG.playerAttackCooldown;
         this.attacking = 10;
-        const hitX = this.x + Math.cos(this.angle) * 50;
-        const hitY = this.y + Math.sin(this.angle) * 50;
+        const hX = this.x + Math.cos(this.angle) * 50;
+        const hY = this.y + Math.sin(this.angle) * 50;
 
-        // Check if bears are hit
         state.enemies.forEach(e => {
-            const dist = Math.hypot(e.x - hitX, e.y - hitY);
-            if (dist < 75) { // Hit Detection Box
+            if (Math.hypot(e.x - hX, e.y - hY) < 70) {
                 e.takeDamage(CONFIG.playerDmg);
-                state.shake = 6;
-                spawnFloatingText("-" + CONFIG.playerDmg, e.x, e.y, '#f1c40f');
-                createBlood(e.x, e.y);
+                state.shake = 8;
+                spawnFloatingText("-" + CONFIG.playerDmg, e.x, e.y, '#ffeb3b');
+                createParticle(e.x, e.y, '#f44336', 4);
             }
         });
     }
-
     draw() {
         ctx.save();
         ctx.translate(this.x - state.cam.x, this.y - state.cam.y);
         ctx.rotate(this.angle);
-        ctx.fillStyle = '#3498db'; // Changed to blue so you can see player clearly
-        ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
-        // Weapon Spear
-        ctx.fillStyle = '#ecf0f1'; ctx.fillRect(15, -3, 50, 6);
+        ctx.fillStyle = '#2196f3';
+        ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'white'; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = 'white'; ctx.fillRect(15, -4, 45, 8); // Spear
         ctx.restore();
     }
 }
 
 class Enemy {
     constructor(tier) {
-        // Spawn ONLY inside the hunt region (X > 400)
-        this.x = CONFIG.huntBoundary + 200 + Math.random() * 800;
-        this.y = (Math.random() - 0.5) * 1000;
-        const scale = 1 + (tier * 0.2);
-        this.radius = 22 * scale;
-        this.hp = 60 * scale; 
+        this.x = CONFIG.huntBoundary + 300 + Math.random() * 500;
+        this.y = (Math.random() - 0.5) * 800;
+        this.hp = 70 + (tier * 20);
         this.maxHp = this.hp;
-        this.speed = 1.0 + (tier * 0.1);
-        this.dmg = 5 + (tier * 2);
-        this.attackTimer = 0;
+        this.speed = 1.2 + (tier * 0.1);
         this.flash = 0;
     }
-
     update() {
-        const dx = player.x - this.x, dy = player.y - this.y;
-        const dist = Math.hypot(dx, dy);
         if (this.flash > 0) this.flash--;
-        if (this.attackTimer > 0) this.attackTimer--;
+        const dist = Math.hypot(player.x - this.x, player.y - this.y);
+        
+        if (dist < 500) {
+            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+            let nx = this.x + Math.cos(angle) * this.speed;
+            let ny = this.y + Math.sin(angle) * this.speed;
+            
+            // STAY IN REGION
+            if (nx > CONFIG.huntBoundary) this.x = nx;
+            this.y = ny;
 
-        // Chasing logic
-        if (dist < 600) { // Only chase if player is close
-            const angle = Math.atan2(dy, dx);
-            const nextX = this.x + Math.cos(angle) * this.speed;
-            const nextY = this.y + Math.sin(angle) * this.speed;
-
-            // PREVENT LEAVING HUNT REGION
-            if (nextX > CONFIG.huntBoundary) {
-                this.x = nextX;
-                this.y = nextY;
+            if (dist < 40) {
+                player.hp -= 0.5; // Constant small damage
+                updateUI();
+                if (player.hp <= 0) gameOver();
             }
         }
-
-        // Damage Player
-        if (dist < this.radius + 15 && this.attackTimer <= 0) {
-            player.hp -= this.dmg;
-            this.attackTimer = 60;
-            updateUI();
-            if (player.hp <= 0) gameOver();
-        }
     }
-
     takeDamage(amt) {
         this.hp -= amt;
         this.flash = 10;
-        if (this.hp <= 0) this.die();
+        if (this.hp <= 0) {
+            state.enemies = state.enemies.filter(e => e !== this);
+            state.bearsKilled++;
+            for(let i=0; i<3; i++) state.drops.push({x: this.x, y: this.y, life: 600});
+            checkStageProgress();
+        }
     }
-
-    die() {
-        state.enemies = state.enemies.filter(e => e !== this);
-        state.bearsKilled++;
-        // Guarantee drops
-        for(let i=0; i<3; i++) state.drops.push(new Drop(this.x, this.y));
-        checkStageProgress();
-    }
-
     draw() {
         const sx = this.x - state.cam.x, sy = this.y - state.cam.y;
         ctx.save();
         ctx.translate(sx, sy);
-        ctx.rotate(Math.atan2(player.y - this.y, player.x - this.x));
-        // Bear color changes to red when hit
-        ctx.fillStyle = this.flash > 0 ? '#ff7675' : 'white';
-        ctx.beginPath(); ctx.ellipse(0, 0, this.radius * 1.3, this.radius, 0, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(this.radius, 0, this.radius*0.7, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = this.flash > 0 ? 'red' : 'white';
+        ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI*2); ctx.fill();
         ctx.restore();
-        // Clear HP Bar
-        ctx.fillStyle = '#333'; ctx.fillRect(sx - 20, sy - 35, 40, 6);
-        ctx.fillStyle = '#2ecc71'; ctx.fillRect(sx - 20, sy - 35, 40 * (this.hp/this.maxHp), 6);
+        // HP Bar
+        ctx.fillStyle = '#333'; ctx.fillRect(sx-20, sy-40, 40, 5);
+        ctx.fillStyle = '#4caf50'; ctx.fillRect(sx-20, sy-40, 40 * (this.hp/this.maxHp), 5);
     }
 }
 
-// ... Drop class remains same as previous balanced version ...
-class Drop {
-    constructor(x, y) { this.x = x; this.y = y; this.life = 600; }
-    update() {
-        this.life--;
-        const d = Math.hypot(player.x - this.x, player.y - this.y);
-        if (d < 30 && state.meat < CONFIG.meatCap) { state.meat++; updateUI(); return true; }
-        if (d < 200) { this.x += (player.x - this.x) * 0.15; this.y += (player.y - this.y) * 0.15; }
-        return this.life <= 0;
-    }
-    draw() {
-        const sx = this.x - state.cam.x, sy = this.y - state.cam.y;
-        ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(sx, sy, 8, 0, Math.PI*2); ctx.fill();
-    }
-}
+// --- CORE LOOPS ---
 
 let player = new Player();
 let machine = new Machine();
@@ -286,11 +232,10 @@ function init() {
     tL.addEventListener('touchmove', e => {
         for (let t of e.changedTouches) {
             if (t.identifier === state.touch.identifier) {
-                state.touch.currX = t.clientX; state.touch.currY = t.clientY;
-                const dx = state.touch.currX - state.touch.startX, dy = state.touch.currY - state.touch.startY;
-                const dist = Math.hypot(dx, dy), angle = Math.atan2(dy, dx);
-                const force = Math.min(dist, 50) / 50;
-                state.touch.dx = Math.cos(angle) * force; state.touch.dy = Math.sin(angle) * force;
+                const dx = t.clientX - state.touch.startX, dy = t.clientY - state.touch.startY;
+                const d = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+                state.touch.dx = Math.cos(a) * (Math.min(d, 50)/50);
+                state.touch.dy = Math.sin(a) * (Math.min(d, 50)/50);
             }
         }
     });
@@ -333,59 +278,71 @@ function updateUI() {
 function gameOver() { state.screen = 'gameover'; document.getElementById('gameOverScreen').classList.add('active'); }
 
 function loop() {
-    if (state.screen === 'game') {
+    if (state.screen === 'game' || state.screen === 'upgrade') {
         player.update();
         machine.update();
         state.enemies.forEach(e => e.update());
-        state.drops = state.drops.filter(d => !d.update());
-        state.particles = state.particles.filter(p => { p.x += p.vx; p.y += p.vy; p.life--; return p.life > 0; });
-        state.texts = state.texts.filter(t => { t.y -= 0.5; t.life--; return t.life > 0; });
         
-        // Meat Slice Particles
-        state.grinderSlices = state.grinderSlices.filter(s => {
-            s.x += s.vx; s.y += s.vy; s.life--;
-            return s.life > 0;
+        // Meat Drops Logic
+        state.drops = state.drops.filter(d => {
+            d.life--;
+            const dist = Math.hypot(player.x - d.x, player.y - d.y);
+            if (dist < 30 && state.meat < CONFIG.meatCap) { state.meat++; updateUI(); return false; }
+            if (dist < 150) { d.x += (player.x - d.x) * 0.1; d.y += (player.y - d.y) * 0.1; }
+            return d.life > 0;
         });
-        
+
+        // Slice Animations
+        state.grinderSlices.forEach(s => { s.x += s.vx; s.y += s.vy; s.life--; });
+        state.grinderSlices = state.grinderSlices.filter(s => s.life > 0);
+
+        // Camera
         state.cam.x += (player.x - canvas.width / 2 - state.cam.x) * 0.1;
         state.cam.y += (player.y - canvas.height / 2 - state.cam.y) * 0.1;
         if (state.shake > 0) { state.cam.x += (Math.random()-0.5)*state.shake; state.cam.y += (Math.random()-0.5)*state.shake; state.shake *= 0.9; }
     }
 
-    ctx.fillStyle = '#0b1016'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#101720'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // DRAW BOUNDARY LINE
-    ctx.strokeStyle = 'rgba(231, 76, 60, 0.5)';
-    ctx.lineWidth = 5;
+    // DRAW REGION LINE (The Fence)
+    ctx.strokeStyle = '#f44336'; ctx.lineWidth = 10;
     ctx.beginPath();
-    ctx.moveTo(CONFIG.huntBoundary - state.cam.x, -2000 - state.cam.y);
-    ctx.lineTo(CONFIG.huntBoundary - state.cam.x, 2000 - state.cam.y);
+    ctx.moveTo(CONFIG.huntBoundary - state.cam.x, -1000 - state.cam.y);
+    ctx.lineTo(CONFIG.huntBoundary - state.cam.x, 1000 - state.cam.y);
     ctx.stroke();
 
     machine.draw();
-    state.drops.forEach(d => d.draw());
+    state.drops.forEach(d => {
+        ctx.fillStyle = '#e91e63';
+        ctx.beginPath(); ctx.arc(d.x - state.cam.x, d.y - state.cam.y, 8, 0, Math.PI*2); ctx.fill();
+    });
+    
     state.enemies.forEach(e => e.draw());
     player.draw();
 
-    // Draw Meat Slices from machine
+    // Grinder Slices
     state.grinderSlices.forEach(s => {
-        ctx.fillStyle = '#ff7675';
-        ctx.fillRect(s.x - state.cam.x, s.y - state.cam.y, 15, 8);
+        ctx.fillStyle = '#ff8a80';
+        ctx.fillRect(s.x - state.cam.x, s.y - state.cam.y, 12, 6);
     });
 
     if (state.touch.active) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.arc(state.touch.startX, state.touch.startY, 50, 0, Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(state.touch.startX, state.touch.startY, 50, 0, Math.PI*2); ctx.stroke();
     }
 
-    state.particles.forEach(p => { ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x - state.cam.x, p.y - state.cam.y, p.size, 0, Math.PI*2); ctx.fill(); });
-    state.texts.forEach(t => { ctx.fillStyle = t.color; ctx.font = 'bold 20px Arial'; ctx.fillText(t.text, t.x - state.cam.x, t.y - state.cam.y); });
+    state.texts.forEach(t => { 
+        t.y -= 1; t.life--;
+        ctx.fillStyle = t.color; ctx.font = 'bold 20px Arial'; 
+        ctx.fillText(t.text, t.x - state.cam.x, t.y - state.cam.y); 
+    });
+    state.texts = state.texts.filter(t => t.life > 0);
 
     requestAnimationFrame(loop);
 }
 
-function createParticle(x, y, color, size) { for(let i=0; i<5; i++) state.particles.push({x, y, color, size, vx:(Math.random()-0.5)*5, vy:(Math.random()-0.5)*5, life:20}); }
-function createBlood(x, y) { createParticle(x, y, '#e74c3c', 3); }
-function spawnFloatingText(text, x, y, color) { state.texts.push({text, x, y, color, life:60}); }
+function spawnFloatingText(text, x, y, color) { state.texts.push({text, x, y, color, life:50}); }
+function createParticle(x, y, color, size) { /* simpler particle logic handled in enemy die */ }
 function toggleUpgradeMenu() { 
     const m = document.getElementById('upgradeMenu');
     if (state.screen === 'game') { state.screen = 'upgrade'; m.classList.add('active'); }
